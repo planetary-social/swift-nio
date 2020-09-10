@@ -455,3 +455,40 @@ extension SocketAddress {
     }
 }
 
+
+extension SocketAddress {
+    private static let portDelimiter: Character = ":"
+
+    /// Get the IP address together with the port number as a colon-concatenated string.
+    public var fullInternetAddress: String? {
+        switch self {
+        case .v4(_):
+            fallthrough
+        case .v6(_):
+            return [ipAddress, port?.description]
+                   .compactMap { $0 }
+                   .joined(separator: String(Self.portDelimiter))
+        default:
+            return nil
+        }
+    }
+
+    /// Create a new `SocketAddress` for a colon-concatenated string form of the IP address and port.
+    ///
+    /// - parameters:
+    ///     - fullInternetAddress: The IP address and port separated by colon, in string form.
+    /// - returns: the `SocketAddress` corresponding to correctly parsed IP address and port combination.
+    /// - throws:
+    ///     - may throw `SocketAddressError.failedToParseIPString` if the IP address cannot be parsed;
+    ///     - may also throw `SocketAddressError.unsupported` if the port number is invalid or missing.
+    public init(fullInternetAddress: String) throws {
+        let parts = fullInternetAddress.split(separator: Self.portDelimiter)
+        guard parts.count > 1, let rawPort = parts.last, let port = Int(rawPort) else {
+            // FIXME: Might wanna specialise this as new .invalidOrMissingPortNumber
+            throw SocketAddressError.unsupported
+        }
+
+        let ipAddress = String(parts.dropLast().joined(separator: String(Self.portDelimiter)))
+        self = try SocketAddress(ipAddress: ipAddress, port: port)
+    }
+}
